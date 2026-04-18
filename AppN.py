@@ -306,17 +306,39 @@ def extract_manufacturer(block):
     return ""
 
 
-# ── Atribuicao (logica original NextSupply) ───────────────────────────────────
+# ── Atribuicao ────────────────────────────────────────────────────────────────
 
-HELIO_BRANDS  = ["abb", "schneider", "siemens", "rittal", "phoenix", "weidmuller", "rockwell"]
-MAYARA_BRANDS = ["skf", "emerson"]
-VIVIANA_BRANDS= ["kongsberg", "yamada", "dnh", "evac", "steyr"]
+DEFAULT_TEAM = [
+    {"name": "Viviana", "brands": ["kongsberg", "yamada", "dnh", "evac", "steyr"]},
+    {"name": "Helio",   "brands": ["abb", "schneider", "siemens", "rittal", "phoenix", "weidmuller", "rockwell"]},
+    {"name": "Mayara",  "brands": ["skf", "emerson"]},
+]
 
-RESPONSAVEIS  = ["Viviana", "Helio", "Mayara"]
-TARGETS_PCT   = {"Viviana": 0.33, "Helio": 0.33, "Mayara": 0.34}
+
+def sidebar_team():
+    with st.sidebar:
+        st.markdown("## Equipe")
+        st.caption("Configure os responsaveis e as marcas de cada um.")
+        n = st.number_input("Nr de responsaveis", min_value=1, max_value=10, value=len(DEFAULT_TEAM), step=1)
+        team = []
+        for i in range(int(n)):
+            default = DEFAULT_TEAM[i] if i < len(DEFAULT_TEAM) else {"name": "Responsavel " + str(i+1), "brands": []}
+            with st.expander("Responsavel " + str(i+1), expanded=(i == 0)):
+                name = st.text_input("Nome", value=default["name"], key="rname_" + str(i))
+                brands_raw = st.text_area(
+                    "Marcas associadas (uma por linha)",
+                    value="\n".join(default["brands"]),
+                    height=100,
+                    key="rbrands_" + str(i),
+                )
+                brands = [b.strip().lower() for b in brands_raw.splitlines() if b.strip()]
+                team.append({"name": name, "brands": brands})
+        st.markdown("---")
+        st.markdown("Next Supply\nSeparador de OPS Petronect")
+    return team
 
 
-def assign(df):
+def assign(df, team):
     if df.empty:
         df["Responsavel"] = pd.Series(dtype="object")
         return df
@@ -329,34 +351,26 @@ def assign(df):
 
     df["Responsavel"] = pd.NA
 
-    # Viviana - tipo Inaplicavel
-    df.loc[
-        df["Tipo de Oportunidade"].fillna("").str.contains("Inaplica", na=False, regex=False),
-        "Responsavel",
-    ] = "Viviana"
+    # Passo 1 — marcas fixas por responsavel
+    for member in team:
+        for brand in member.get("brands", []):
+            mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(brand), regex=True, na=False)
+            df.loc[mask, "Responsavel"] = member["name"]
 
-    # Helio - marcas eletrica/automacao
-    for t in HELIO_BRANDS:
-        mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(t), regex=True, na=False)
-        df.loc[mask, "Responsavel"] = "Helio"
+    # Passo 2 — balanceamento proporcional dos restantes
+    names = [m["name"] for m in team]
+    if not names:
+        return df
 
-    # Mayara - marcas especificas
-    for t in MAYARA_BRANDS:
-        mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(t), regex=True, na=False)
-        df.loc[mask, "Responsavel"] = "Mayara"
+    total_na = int(df["Responsavel"].isna().sum())
+    if total_na == 0:
+        return df
 
-    # Viviana - marcas nauticas
-    for t in VIVIANA_BRANDS:
-        mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(t), regex=True, na=False)
-        df.loc[mask, "Responsavel"] = "Viviana"
-
-    # Balanceamento proporcional para os restantes
-    total = len(df)
-    targets = {r: round(total * TARGETS_PCT[r]) for r in RESPONSAVEIS}
-    targets["Mayara"] = total - targets["Viviana"] - targets["Helio"]
-    counts = df["Responsavel"].value_counts(dropna=True).to_dict()
-    for r in RESPONSAVEIS:
-        counts.setdefault(r, 0)
+    n = len(names)
+    base = total_na // n
+    extra = total_na % n
+    targets = {names[i]: base + (1 if i < extra else 0) for i in range(n)}
+    counts = {name: 0 for name in names}
 
     chave = (
         df["Descricao de Item"].fillna("").str.strip().str.lower() + "|" +
@@ -365,7 +379,7 @@ def assign(df):
     )
 
     for _, grp in df[df["Responsavel"].isna()].groupby(chave, sort=False):
-        chosen = max(RESPONSAVEIS, key=lambda r: targets[r] - counts[r])
+        chosen = max(names, key=lambda name: targets[name] - counts[name])
         df.loc[grp.index, "Responsavel"] = chosen
         counts[chosen] += len(grp)
 
@@ -383,7 +397,7 @@ COLS = [
 ]
 
 
-def process_zip(zip_bytes, df_hist=None):
+def process_zip(zip_bytes, team, df_hist=None):
     rows, log = [], []
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -443,7 +457,7 @@ def process_zip(zip_bytes, df_hist=None):
     hist = df_hist if df_hist is not None and not df_hist.empty else pd.DataFrame()
     df["Recorrente"] = detect_recurring(df, hist).map({True: "Sim", False: "Nao"})
 
-    df = assign(df)
+    df = assign(df, team)
     for col in COLS:
         if col not in df.columns:
             df[col] = ""
@@ -554,37 +568,39 @@ def _format_resumo(ws, resumo_df):
         ws.column_dimensions[col].width = w
 
 
-def to_excel(df):
+def to_excel(df, team):
+    names = [m["name"] for m in team]
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         if df.empty:
             pd.DataFrame({"Aviso": ["Nenhum item encontrado."]}).to_excel(writer, sheet_name="Consolidado", index=False)
             return buf.getvalue()
-        for resp in RESPONSAVEIS:
-            sub = df[df["Responsavel"] == resp]
+        for member in team:
+            sub = df[df["Responsavel"] == member["name"]]
             if not sub.empty:
-                sub.to_excel(writer, sheet_name=resp[:31], index=False)
+                sub.to_excel(writer, sheet_name=member["name"][:31], index=False)
         df.to_excel(writer, sheet_name="Consolidado", index=False)
         resumo = pd.DataFrame([{
-            "Responsavel": r,
-            "Itens": int((df["Responsavel"] == r).sum()),
-            "%": round((df["Responsavel"] == r).sum() / len(df) * 100, 1),
-        } for r in RESPONSAVEIS])
+            "Responsavel": m["name"],
+            "Itens": int((df["Responsavel"] == m["name"]).sum()),
+            "%": round((df["Responsavel"] == m["name"]).sum() / len(df) * 100, 1),
+        } for m in team])
         resumo.to_excel(writer, sheet_name="Resumo", index=False)
 
     wb = load_workbook(BytesIO(buf.getvalue()))
-    for resp in RESPONSAVEIS:
-        if resp in wb.sheetnames:
-            sub = df[df["Responsavel"] == resp]
-            _format_sheet(wb[resp], sub.reset_index(drop=True), "Next Supply - " + resp)
+    for member in team:
+        name = member["name"][:31]
+        if name in wb.sheetnames:
+            sub = df[df["Responsavel"] == member["name"]]
+            _format_sheet(wb[name], sub.reset_index(drop=True), "Next Supply - " + member["name"])
     if "Consolidado" in wb.sheetnames:
         _format_sheet(wb["Consolidado"], df.reset_index(drop=True), "Next Supply - Consolidado")
     if "Resumo" in wb.sheetnames:
         resumo = pd.DataFrame([{
-            "Responsavel": r,
-            "Itens": int((df["Responsavel"] == r).sum()),
-            "%": round((df["Responsavel"] == r).sum() / len(df) * 100, 1),
-        } for r in RESPONSAVEIS])
+            "Responsavel": m["name"],
+            "Itens": int((df["Responsavel"] == m["name"]).sum()),
+            "%": round((df["Responsavel"] == m["name"]).sum() / len(df) * 100, 1),
+        } for m in team])
         _format_resumo(wb["Resumo"], resumo)
 
     out = BytesIO()
@@ -638,6 +654,7 @@ if "history" not in st.session_state:
 if "last_upload" not in st.session_state:
     st.session_state["last_upload"] = None
 
+team = sidebar_team()
 render_topbar()
 
 sec("Carregar historico mensal anterior (opcional)")
@@ -673,7 +690,7 @@ df_today = None
 if uploaded and uploaded.name != st.session_state["last_upload"]:
     st.session_state["last_upload"] = uploaded.name
     with st.spinner("Processando PDFs..."):
-        df_today, log = process_zip(uploaded.read(), st.session_state["history"])
+        df_today, log = process_zip(uploaded.read(), team, st.session_state["history"])
     if df_today is not None and not df_today.empty:
         st.session_state["history"] = (
             pd.concat([st.session_state["history"], df_today], ignore_index=True)
@@ -764,7 +781,7 @@ if df_view is not None and not df_view.empty:
         src = df_today if df_today is not None and not df_today.empty else df_view
         st.download_button(
             "Excel do dia",
-            data=to_excel(src),
+            data=to_excel(src, team),
             file_name="nextsupply_ops_dia.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
@@ -772,7 +789,7 @@ if df_view is not None and not df_view.empty:
     with e2:
         st.download_button(
             "Excel mensal (acumulado)",
-            data=to_excel(st.session_state["history"]),
+            data=to_excel(st.session_state["history"], team),
             file_name="nextsupply_ops_mensal.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
