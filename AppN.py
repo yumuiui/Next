@@ -448,16 +448,11 @@ def enriquecer_com_historico(df_extr, df_preco):
             continue
 
         # --- Passo 1: filtrar historico pelo fabricante ---
-        # Tenta match do fabricante extraido contra coluna FABRICANTE do historico
         sub_fab = pd.DataFrame()
         if fab_item:
-            # Busca o fabricante do item dentro da coluna _fab do historico
-            # e vice-versa (historico dentro do item)
-            mask = (
-                df_preco["_fab"].apply(lambda h: h and h in fab_item) |
-                df_preco["_fab"].apply(lambda h: h and fab_item in h)
-            )
-            sub_fab = df_preco[mask].copy()
+            mask1 = df_preco["_fab"].apply(lambda h: bool(h and h in fab_item))
+            mask2 = df_preco["_fab"].apply(lambda h: bool(h and fab_item in h))
+            sub_fab = df_preco[mask1 | mask2].copy()
 
         # --- Passo 2: ctrl-F — busca cada PN do fabricante na descricao longa ---
         matches = pd.DataFrame()
