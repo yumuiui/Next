@@ -571,8 +571,9 @@ def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
         for pdf in pdfs:
             try:
                 with pdfplumber.open(str(pdf)) as p:
-                    raw = clean("\n".join((pg.extract_text() or "") for pg in p.pages))
-                header = extract_header(raw, pdf.stem)
+                    raw_pages = "\n".join((pg.extract_text() or "") for pg in p.pages)
+                header = extract_header(raw_pages, pdf.stem)   # antes do clean
+                raw    = clean(raw_pages)
                 blocks = re.split(r"(?i)\bDados do Item\b", raw)[1:]
                 if not blocks:
                     log.append("AVISO: " + pdf.name + " sem itens.")
