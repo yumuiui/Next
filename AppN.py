@@ -386,6 +386,110 @@ def assign(df, team):
     return df
 
 
+
+# ── Historico de Precos por PN ────────────────────────────────────────────────
+
+def load_historico(file_bytes):
+    """Le a aba DADOS da planilha de analise e retorna DataFrame indexado por PN."""
+    try:
+        df = pd.read_excel(BytesIO(file_bytes), sheet_name="DADOS", dtype=str)
+        df.columns = [c.strip() for c in df.columns]
+        df["_pn"] = df["PART NUMBER"].fillna("").str.strip().str.upper()
+        return df[df["_pn"] != ""].reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
+
+
+def enriquecer_com_historico(df_extr, df_preco):
+    """
+    Adiciona 3 colunas ao df extraido consultando historico por PN:
+      - Hist: Ultima analise  (Ganhamos / Perdemos / Sem historico)
+      - Hist: Dif ultima      (ex: -R$ 10.254 (-38%))
+      - Hist: Dif media hist  (ex: -22% medio)
+
+    Logica da planilha: DIFERENCA negativa = ganhamos (fomos mais baratos).
+                        DIFERENCA positiva = perdemos (fomos mais caros).
+    """
+    cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"]
+    for c in cols_out:
+        df_extr[c] = ""
+
+    if df_preco.empty:
+        return df_extr
+
+    def fmt_brl(v):
+        sinal = "+" if v > 0 else ""
+        return sinal + "R$ {:,.2f}".format(v).replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def fmt_pct(v):
+        sinal = "+" if v > 0 else ""
+        return sinal + "{:.1f}%".format(v * 100)
+
+    for idx, row in df_extr.iterrows():
+        pn = str(row.get("Fabricante/PN", "") or "").strip().upper()
+        if not pn:
+            continue
+
+        sub = df_preco[df_preco["_pn"] == pn].copy()
+        if sub.empty:
+            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
+            continue
+
+        # Converte DIFERENCA VALOR para numerico
+        col_dif = next((c for c in sub.columns if "DIFE" in c.upper() and "VALOR" in c.upper()), None)
+        col_pct = next((c for c in sub.columns if c.strip() == "%"), None)
+        col_res = next((c for c in sub.columns if "RESULTADO" in c.upper()), None)
+        col_dat = next((c for c in sub.columns if "DATA" in c.upper()), None)
+
+        if col_dif:
+            sub["_dif"] = pd.to_numeric(sub[col_dif], errors="coerce")
+        else:
+            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
+            continue
+
+        if col_pct:
+            sub["_pct"] = pd.to_numeric(sub[col_pct], errors="coerce")
+
+        # Ordena por data para pegar a mais recente
+        if col_dat:
+            sub = sub.sort_values(col_dat, ascending=True)
+
+        # Ultima analise com resultado definido
+        if col_res:
+            sub_com_res = sub[sub[col_res].fillna("").str.strip().str.lower().isin(["ganhamos", "perdemos"])]
+        else:
+            sub_com_res = sub
+
+        if sub_com_res.empty:
+            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
+            continue
+
+        ultima = sub_com_res.iloc[-1]
+        res_ultima = str(ultima.get(col_res, "") or "").strip()
+        dif_ultima = ultima.get("_dif", None)
+        pct_ultima = ultima.get("_pct", None) if col_pct else None
+
+        # Ultima analise: Ganhamos ou Perdemos
+        df_extr.at[idx, "Hist: Ultima analise"] = res_ultima if res_ultima else "Sem historico"
+
+        # Dif ultima
+        if pd.notna(dif_ultima):
+            txt = fmt_brl(dif_ultima)
+            if pd.notna(pct_ultima):
+                txt += " (" + fmt_pct(pct_ultima) + ")"
+            df_extr.at[idx, "Hist: Dif ultima"] = txt
+
+        # Media historica da diferenca %
+        if col_pct and "_pct" in sub.columns:
+            vals = sub["_pct"].dropna()
+            if not vals.empty:
+                media = vals.mean()
+                df_extr.at[idx, "Hist: Dif media hist"] = fmt_pct(media) + " medio"
+
+    return df_extr
+
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 COLS = [
@@ -394,10 +498,11 @@ COLS = [
     "Local de Entrega", "Item", "Quantidade", "Unidade de medida",
     "Descricao de Item", "Descricao longa do item",
     "Fabricante/PN", "Categoria", "Recorrente", "Responsavel",
+    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist",
 ]
 
 
-def process_zip(zip_bytes, team, df_hist=None):
+def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
     rows, log = [], []
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -458,6 +563,11 @@ def process_zip(zip_bytes, team, df_hist=None):
     df["Recorrente"] = detect_recurring(df, hist).map({True: "Sim", False: "Nao"})
 
     df = assign(df, team)
+
+    # Enriquece com historico de precos se disponivel
+    if df_preco is not None and not df_preco.empty:
+        df = enriquecer_com_historico(df, df_preco)
+
     for col in COLS:
         if col not in df.columns:
             df[col] = ""
@@ -494,6 +604,9 @@ COL_LABELS = {
     "Categoria":                 "Categoria",
     "Recorrente":                "Recorrente",
     "Responsavel":               "Responsavel",
+    "Hist: Ultima analise":      "Ultima Analise",
+    "Hist: Dif ultima":          "Dif Ultima (R$/%)",
+    "Hist: Dif media hist":      "Dif Media Hist",
 }
 
 COL_WIDTHS = {
@@ -513,6 +626,9 @@ COL_WIDTHS = {
     "Categoria":                 16,
     "Recorrente":                12,
     "Responsavel":               14,
+    "Hist: Ultima analise":      14,
+    "Hist: Dif ultima":          22,
+    "Hist: Dif media hist":      16,
 }
 
 WRAP_COLS = {"Descricao de Item", "Descricao longa do item", "Local de Entrega"}
@@ -531,15 +647,37 @@ def _format_sheet(ws, df, title):
         c.font = HDR_FONT; c.fill = HDR_FILL; c.alignment = CENTER; c.border = BORDER
     ws.row_dimensions[2].height = 22
     has_wrap = any(col in WRAP_COLS for col in df.columns)
+    HIST_COL = "Hist: Ultima analise"
+    GANHOU_FILL = PatternFill("solid", fgColor="C8E6C9")  # verde
+    PERDEU_FILL = PatternFill("solid", fgColor="FFCDD2")  # vermelho
+    SEM_FILL    = PatternFill("solid", fgColor="E8EAF6")  # cinza azulado
+
     for ri, (_, row) in enumerate(df.iterrows(), 3):
         is_rec = str(row.get("Recorrente", "")).strip().lower() == "sim"
         fill = REC_FILL if is_rec else (ODD_FILL if ri % 2 else EVEN_FILL)
+        resultado_hist = str(row.get(HIST_COL, "")).strip().lower()
+
         for ci, col in enumerate(df.columns, 1):
             val = row[col]
             val = "" if pd.isna(val) else val
             c = ws.cell(ri, ci, val)
-            c.font = BODY_FONT; c.fill = fill; c.border = BORDER
+            c.font = BODY_FONT
+            c.border = BORDER
             c.alignment = LEFT if col in WRAP_COLS else CENTER
+
+            # Colunas de historico recebem cor propria
+            if col in ("Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"):
+                if resultado_hist == "ganhamos":
+                    c.fill = GANHOU_FILL
+                    c.font = Font(name="Arial", size=10, bold=(col == "Hist: Ultima analise"), color="1B5E20")
+                elif resultado_hist == "perdemos":
+                    c.fill = PERDEU_FILL
+                    c.font = Font(name="Arial", size=10, bold=(col == "Hist: Ultima analise"), color="B71C1C")
+                else:
+                    c.fill = SEM_FILL
+                    c.font = Font(name="Arial", size=10, color="546E7A")
+            else:
+                c.fill = fill
         ws.row_dimensions[ri].height = 40 if has_wrap else 18
     for ci, col in enumerate(df.columns, 1):
         ws.column_dimensions[get_column_letter(ci)].width = COL_WIDTHS.get(col, 18)
@@ -653,6 +791,8 @@ if "history" not in st.session_state:
     st.session_state["history"] = pd.DataFrame(columns=COLS)
 if "last_upload" not in st.session_state:
     st.session_state["last_upload"] = None
+if "df_preco" not in st.session_state:
+    st.session_state["df_preco"] = pd.DataFrame()
 
 team = sidebar_team()
 render_topbar()
@@ -682,6 +822,25 @@ if base_file:
 
 hr()
 
+sec("Planilha de Analise de Precos (opcional)")
+st.caption("Carregue a planilha de analise para ativar o historico de ganho/perda por Part Number nas colunas do cotador.")
+preco_file = st.file_uploader("Analise de Precos (.xlsx)", type=["xlsx"], key="preco_upload", label_visibility="collapsed")
+if preco_file:
+    try:
+        df_p = load_historico(preco_file.read())
+        if df_p.empty:
+            st.warning("Nao foi possivel ler a aba DADOS da planilha.")
+        else:
+            st.session_state["df_preco"] = df_p
+            n_pns = df_p["_pn"].nunique()
+            n_ganhos = int((df_p.get("Resultado Esperado", pd.Series()).str.strip().str.lower() == "ganhamos").sum())
+            n_perdidos = int((df_p.get("Resultado Esperado", pd.Series()).str.strip().str.lower() == "perdemos").sum())
+            st.success(f"Historico carregado: {len(df_p)} linhas | {n_pns} PNs unicos | {n_ganhos} ganhos | {n_perdidos} perdidos.")
+    except Exception as e:
+        st.error("Erro ao carregar planilha: " + str(e))
+
+hr()
+
 sec("Upload do arquivo ZIP")
 st.caption("Selecione o arquivo compactado com os PDFs das oportunidades do dia.")
 uploaded = st.file_uploader("Arquivo ZIP", type=["zip"], label_visibility="collapsed")
@@ -690,7 +849,11 @@ df_today = None
 if uploaded and uploaded.name != st.session_state["last_upload"]:
     st.session_state["last_upload"] = uploaded.name
     with st.spinner("Processando PDFs..."):
-        df_today, log = process_zip(uploaded.read(), team, st.session_state["history"])
+        df_today, log = process_zip(
+            uploaded.read(), team,
+            st.session_state["history"],
+            st.session_state["df_preco"] if not st.session_state["df_preco"].empty else None
+        )
     if df_today is not None and not df_today.empty:
         st.session_state["history"] = (
             pd.concat([st.session_state["history"], df_today], ignore_index=True)
