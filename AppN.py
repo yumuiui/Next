@@ -390,31 +390,42 @@ def assign(df, team):
 # ── Historico de Precos por PN ────────────────────────────────────────────────
 
 def load_historico(file_bytes):
-    """Le a aba DADOS da planilha de analise e retorna DataFrame indexado por PN."""
+    """Le a aba DADOS da planilha de analise e retorna DataFrame limpo."""
     try:
         df = pd.read_excel(BytesIO(file_bytes), sheet_name="DADOS", dtype=str)
         df.columns = [c.strip() for c in df.columns]
-        df["_pn"] = df["PART NUMBER"].fillna("").str.strip().str.upper()
-        return df[df["_pn"] != ""].reset_index(drop=True)
+        # Normaliza fabricante e PN
+        df["_fab"] = df["FABRICANTE"].fillna("").str.strip().str.upper()
+        df["_pn"]  = df["PART NUMBER"].fillna("").str.strip().str.upper()
+        return df.reset_index(drop=True)
     except Exception:
         return pd.DataFrame()
 
 
 def enriquecer_com_historico(df_extr, df_preco):
     """
-    Adiciona 3 colunas ao df extraido consultando historico por PN:
-      - Hist: Ultima analise  (Ganhamos / Perdemos / Sem historico)
-      - Hist: Dif ultima      (ex: -R$ 10.254 (-38%))
-      - Hist: Dif media hist  (ex: -22% medio)
+    Para cada item extraido, busca historico assim:
+      1. Filtra historico pelo FABRICANTE do item
+      2. Para cada PN analisado desse fabricante, faz ctrl-F na descricao longa
+      3. Se o PN aparecer em qualquer parte da descricao -> match encontrado
+      4. Agrega os matches e retorna ultima analise, dif ultima e dif media
 
-    Logica da planilha: DIFERENCA negativa = ganhamos (fomos mais baratos).
-                        DIFERENCA positiva = perdemos (fomos mais caros).
+    Logica: DIFERENCA negativa = ganhamos. DIFERENCA positiva = perdemos.
     """
     cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"]
     for c in cols_out:
         df_extr[c] = ""
 
     if df_preco.empty:
+        return df_extr
+
+    # Identificar colunas chave uma vez
+    col_dif = next((c for c in df_preco.columns if "DIFE" in c.upper() and "VALOR" in c.upper()), None)
+    col_pct = next((c for c in df_preco.columns if c.strip() == "%"), None)
+    col_res = next((c for c in df_preco.columns if "RESULTADO" in c.upper()), None)
+    col_dat = next((c for c in df_preco.columns if c.strip() == "DATA"), None)
+
+    if not col_dif:
         return df_extr
 
     def fmt_brl(v):
@@ -425,69 +436,92 @@ def enriquecer_com_historico(df_extr, df_preco):
         sinal = "+" if v > 0 else ""
         return sinal + "{:.1f}%".format(v * 100)
 
+    def norm(s):
+        return str(s or "").strip().upper()
+
     for idx, row in df_extr.iterrows():
-        pn = str(row.get("Fabricante/PN", "") or "").strip().upper()
-        if not pn:
-            continue
+        fab_item = norm(row.get("Fabricante/PN", ""))
+        desc_longa = norm(row.get("Descricao longa do item", ""))
 
-        sub = df_preco[df_preco["_pn"] == pn].copy()
-        if sub.empty:
+        if not fab_item and not desc_longa:
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
-        # Converte DIFERENCA VALOR para numerico
-        col_dif = next((c for c in sub.columns if "DIFE" in c.upper() and "VALOR" in c.upper()), None)
-        col_pct = next((c for c in sub.columns if c.strip() == "%"), None)
-        col_res = next((c for c in sub.columns if "RESULTADO" in c.upper()), None)
-        col_dat = next((c for c in sub.columns if "DATA" in c.upper()), None)
+        # --- Passo 1: filtrar historico pelo fabricante ---
+        # Tenta match do fabricante extraido contra coluna FABRICANTE do historico
+        sub_fab = pd.DataFrame()
+        if fab_item:
+            # Busca o fabricante do item dentro da coluna _fab do historico
+            # e vice-versa (historico dentro do item)
+            mask = (
+                df_preco["_fab"].apply(lambda h: h and h in fab_item) |
+                df_preco["_fab"].apply(lambda h: h and fab_item in h)
+            )
+            sub_fab = df_preco[mask].copy()
 
-        if col_dif:
-            sub["_dif"] = pd.to_numeric(sub[col_dif], errors="coerce")
-        else:
+        # --- Passo 2: ctrl-F — busca cada PN do fabricante na descricao longa ---
+        matches = pd.DataFrame()
+        if not sub_fab.empty and desc_longa:
+            pns_fabricante = sub_fab["_pn"].dropna().unique()
+            pns_fabricante = [p for p in pns_fabricante if len(p) >= 4]  # ignora PNs muito curtos
+            matched_rows = []
+            for pn in pns_fabricante:
+                if pn in desc_longa:  # ctrl-F: pn aparece em qualquer parte da descricao
+                    matched_rows.append(sub_fab[sub_fab["_pn"] == pn])
+            if matched_rows:
+                matches = pd.concat(matched_rows, ignore_index=True)
+
+        # Se nao achou pelo fabricante+PN, tenta direto o fab_item na descricao
+        if matches.empty and desc_longa and fab_item:
+            # Tenta qualquer registro do historico cujo PN apareca na descricao longa
+            pns_todos = df_preco["_pn"].dropna().unique()
+            pns_todos = [p for p in pns_todos if len(p) >= 6]
+            matched_rows = []
+            for pn in pns_todos:
+                if pn in desc_longa:
+                    matched_rows.append(df_preco[df_preco["_pn"] == pn])
+            if matched_rows:
+                matches = pd.concat(matched_rows, ignore_index=True)
+
+        if matches.empty:
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
+        # --- Passo 3: calcular metricas dos matches ---
+        matches["_dif"] = pd.to_numeric(matches[col_dif], errors="coerce")
         if col_pct:
-            sub["_pct"] = pd.to_numeric(sub[col_pct], errors="coerce")
-
-        # Ordena por data para pegar a mais recente
+            matches["_pct"] = pd.to_numeric(matches[col_pct], errors="coerce")
         if col_dat:
-            sub = sub.sort_values(col_dat, ascending=True)
+            matches = matches.sort_values(col_dat, ascending=True)
 
-        # Ultima analise com resultado definido
         if col_res:
-            sub_com_res = sub[sub[col_res].fillna("").str.strip().str.lower().isin(["ganhamos", "perdemos"])]
+            com_res = matches[matches[col_res].fillna("").str.strip().str.lower().isin(["ganhamos", "perdemos"])]
         else:
-            sub_com_res = sub
+            com_res = matches
 
-        if sub_com_res.empty:
+        if com_res.empty:
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
-        ultima = sub_com_res.iloc[-1]
-        res_ultima = str(ultima.get(col_res, "") or "").strip()
-        dif_ultima = ultima.get("_dif", None)
-        pct_ultima = ultima.get("_pct", None) if col_pct else None
+        ultima   = com_res.iloc[-1]
+        res_ult  = str(ultima.get(col_res, "") or "").strip()
+        dif_ult  = ultima.get("_dif", None)
+        pct_ult  = ultima.get("_pct", None) if col_pct else None
 
-        # Ultima analise: Ganhamos ou Perdemos
-        df_extr.at[idx, "Hist: Ultima analise"] = res_ultima if res_ultima else "Sem historico"
+        df_extr.at[idx, "Hist: Ultima analise"] = res_ult if res_ult else "Sem historico"
 
-        # Dif ultima
-        if pd.notna(dif_ultima):
-            txt = fmt_brl(dif_ultima)
-            if pd.notna(pct_ultima):
-                txt += " (" + fmt_pct(pct_ultima) + ")"
+        if pd.notna(dif_ult):
+            txt = fmt_brl(dif_ult)
+            if pd.notna(pct_ult):
+                txt += " (" + fmt_pct(pct_ult) + ")"
             df_extr.at[idx, "Hist: Dif ultima"] = txt
 
-        # Media historica da diferenca %
-        if col_pct and "_pct" in sub.columns:
-            vals = sub["_pct"].dropna()
+        if col_pct and "_pct" in matches.columns:
+            vals = matches["_pct"].dropna()
             if not vals.empty:
-                media = vals.mean()
-                df_extr.at[idx, "Hist: Dif media hist"] = fmt_pct(media) + " medio"
+                df_extr.at[idx, "Hist: Dif media hist"] = fmt_pct(vals.mean()) + " medio"
 
     return df_extr
-
 
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
@@ -963,4 +997,3 @@ if df_view is not None and not df_view.empty:
             st.session_state["last_upload"] = None
             st.rerun()
         st.caption("Zera o acumulado para novo mes.")
-        
