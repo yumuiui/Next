@@ -408,11 +408,15 @@ def enriquecer_com_historico(df_extr, df_preco):
       1. Filtra historico pelo FABRICANTE do item
       2. Para cada PN analisado desse fabricante, faz ctrl-F na descricao longa
       3. Se o PN aparecer em qualquer parte da descricao -> match encontrado
-      4. Agrega os matches e retorna ultima analise, dif ultima e dif media
+      4. Tambem faz ctrl-F com os nomes de fabricante do historico na descricao
+      5. Agrega os matches e retorna ultima analise, dif ultima, dif media, OP e data
 
     Logica: DIFERENCA negativa = ganhamos. DIFERENCA positiva = perdemos.
     """
-    cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist", "Hist: OP referencia"]
+    cols_out = [
+        "Hist: Ultima analise", "Hist: Dif ultima",
+        "Hist: Dif media hist", "Hist: OP referencia", "Hist: Data analise",
+    ]
     for c in cols_out:
         df_extr[c] = ""
 
@@ -429,6 +433,10 @@ def enriquecer_com_historico(df_extr, df_preco):
     if not col_dif:
         return df_extr
 
+    # Pre-calcular fabricantes e PNs do historico uma vez (performance)
+    fabs_hist = [(fab, df_preco[df_preco["_fab"] == fab]) for fab in df_preco["_fab"].dropna().unique() if len(fab) >= 4]
+    pns_hist_todos = [p for p in df_preco["_pn"].dropna().unique() if len(p) >= 6]
+
     def fmt_brl(v):
         sinal = "+" if v > 0 else ""
         return sinal + "R$ {:,.2f}".format(v).replace(",", "X").replace(".", ",").replace("X", ".")
@@ -441,41 +449,48 @@ def enriquecer_com_historico(df_extr, df_preco):
         return str(s or "").strip().upper()
 
     for idx, row in df_extr.iterrows():
-        fab_item = norm(row.get("Fabricante/PN", ""))
+        fab_item  = norm(row.get("Fabricante/PN", ""))
         desc_longa = norm(row.get("Descricao longa do item", ""))
 
         if not fab_item and not desc_longa:
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
-        # --- Passo 1: filtrar historico pelo fabricante ---
-        sub_fab = pd.DataFrame()
+        matches = pd.DataFrame()
+
+        # --- Passo 1: filtrar historico pelo fabricante extraido (match direto) ---
         if fab_item:
             mask1 = df_preco["_fab"].apply(lambda h: bool(h and h in fab_item))
             mask2 = df_preco["_fab"].apply(lambda h: bool(h and fab_item in h))
             sub_fab = df_preco[mask1 | mask2].copy()
 
-        # --- Passo 2: ctrl-F — busca cada PN do fabricante na descricao longa ---
-        matches = pd.DataFrame()
-        if not sub_fab.empty and desc_longa:
-            pns_fabricante = sub_fab["_pn"].dropna().unique()
-            pns_fabricante = [p for p in pns_fabricante if len(p) >= 4]  # ignora PNs muito curtos
+            # --- Passo 2: ctrl-F — busca cada PN desse fabricante na descricao ---
+            if not sub_fab.empty and desc_longa:
+                pns_fab = [p for p in sub_fab["_pn"].dropna().unique() if len(p) >= 4]
+                matched_rows = [sub_fab[sub_fab["_pn"] == pn] for pn in pns_fab if pn in desc_longa]
+                if matched_rows:
+                    matches = pd.concat(matched_rows, ignore_index=True)
+
+        # --- Passo 3: ctrl-F com FABRICANTE do historico na descricao longa ---
+        # (funciona quando o fabricante nao foi extraido do PDF mas aparece na descricao)
+        if matches.empty and desc_longa:
             matched_rows = []
-            for pn in pns_fabricante:
-                if pn in desc_longa:  # ctrl-F: pn aparece em qualquer parte da descricao
-                    matched_rows.append(sub_fab[sub_fab["_pn"] == pn])
+            for fab_h, sub_h in fabs_hist:
+                if fab_h in desc_longa:  # ctrl-F: nome do fabricante aparece na descricao
+                    # Dentro desse fabricante, busca tambem os PNs na descricao
+                    pns_h = [p for p in sub_h["_pn"].dropna().unique() if len(p) >= 4]
+                    pn_rows = [sub_h[sub_h["_pn"] == pn] for pn in pns_h if pn in desc_longa]
+                    if pn_rows:
+                        matched_rows.extend(pn_rows)
+                    else:
+                        # Fabricante achou mas PN nao: usa todos os registros do fabricante
+                        matched_rows.append(sub_h)
             if matched_rows:
                 matches = pd.concat(matched_rows, ignore_index=True)
 
-        # Se nao achou pelo fabricante+PN, tenta direto o fab_item na descricao
-        if matches.empty and desc_longa and fab_item:
-            # Tenta qualquer registro do historico cujo PN apareca na descricao longa
-            pns_todos = df_preco["_pn"].dropna().unique()
-            pns_todos = [p for p in pns_todos if len(p) >= 6]
-            matched_rows = []
-            for pn in pns_todos:
-                if pn in desc_longa:
-                    matched_rows.append(df_preco[df_preco["_pn"] == pn])
+        # --- Passo 4 (fallback): ctrl-F de todos os PNs do historico na descricao ---
+        if matches.empty and desc_longa:
+            matched_rows = [df_preco[df_preco["_pn"] == pn] for pn in pns_hist_todos if pn in desc_longa]
             if matched_rows:
                 matches = pd.concat(matched_rows, ignore_index=True)
 
@@ -483,7 +498,8 @@ def enriquecer_com_historico(df_extr, df_preco):
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
-        # --- Passo 3: calcular metricas dos matches ---
+        # --- Passo 5: calcular metricas dos matches ---
+        matches = matches.copy()
         matches["_dif"] = pd.to_numeric(matches[col_dif], errors="coerce")
         if col_pct:
             matches["_pct"] = pd.to_numeric(matches[col_pct], errors="coerce")
@@ -499,10 +515,10 @@ def enriquecer_com_historico(df_extr, df_preco):
             df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
             continue
 
-        ultima   = com_res.iloc[-1]
-        res_ult  = str(ultima.get(col_res, "") or "").strip()
-        dif_ult  = ultima.get("_dif", None)
-        pct_ult  = ultima.get("_pct", None) if col_pct else None
+        ultima  = com_res.iloc[-1]
+        res_ult = str(ultima.get(col_res, "") or "").strip()
+        dif_ult = ultima.get("_dif", None)
+        pct_ult = ultima.get("_pct", None) if col_pct else None
 
         df_extr.at[idx, "Hist: Ultima analise"] = res_ult if res_ult else "Sem historico"
 
@@ -522,6 +538,11 @@ def enriquecer_com_historico(df_extr, df_preco):
             if op_ref:
                 df_extr.at[idx, "Hist: OP referencia"] = op_ref
 
+        if col_dat:
+            data_ref = str(ultima.get(col_dat, "") or "").strip()
+            if data_ref and data_ref != "nan":
+                df_extr.at[idx, "Hist: Data analise"] = data_ref
+
     return df_extr
 
 
@@ -533,7 +554,8 @@ COLS = [
     "Local de Entrega", "Item", "Quantidade", "Unidade de medida",
     "Descricao de Item", "Descricao longa do item",
     "Fabricante/PN", "Categoria", "Recorrente", "Responsavel",
-    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist", "Hist: OP referencia",
+    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist",
+    "Hist: OP referencia", "Hist: Data analise",
 ]
 
 
@@ -643,6 +665,7 @@ COL_LABELS = {
     "Hist: Dif ultima":          "Dif Ultima (R$/%)",
     "Hist: Dif media hist":      "Dif Media Hist",
     "Hist: OP referencia":       "OP Referencia",
+    "Hist: Data analise":        "Data Analise",
 }
 
 COL_WIDTHS = {
@@ -666,6 +689,7 @@ COL_WIDTHS = {
     "Hist: Dif ultima":          22,
     "Hist: Dif media hist":      16,
     "Hist: OP referencia":       16,
+    "Hist: Data analise":        14,
 }
 
 WRAP_COLS = {"Descricao de Item", "Descricao longa do item", "Local de Entrega"}
