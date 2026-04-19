@@ -12,61 +12,49 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-st.set_page_config(page_title="Next Supply | Separador de OPS", page_icon="N", layout="wide")
+st.set_page_config(page_title="Value OPS", page_icon="V", layout="wide")
 
 st.markdown("""<style>
-:root{
-    --bg:#02053d;--panel:#060a53;--panel2:#08106a;
-    --border:rgba(63,93,255,0.35);--border-soft:rgba(255,255,255,0.08);
-    --text:#f5f7ff;--muted:#a9b4ea;
-    --primary:#1237ff;--primary2:#3f5dff;
-    --shadow:0 18px 60px rgba(0,0,0,0.28);
-    --radius-xl:28px;--radius-lg:22px;
-}
-.stApp{
-    background:
-        radial-gradient(circle at top left,rgba(63,93,255,0.20),transparent 28%),
-        radial-gradient(circle at top right,rgba(18,55,255,0.16),transparent 24%),
-        linear-gradient(180deg,#010332 0%,var(--bg) 100%);
-    color:var(--text);
-}
-.block-container{max-width:1400px;padding-top:1.4rem;padding-bottom:2.5rem;}
+:root{--orange:#E8630A;--surface:#0c1d30;--border:rgba(232,99,10,0.28);--border-soft:rgba(255,255,255,0.07);--text:#e8eef6;--muted:#7a95b0;--shadow:0 20px 60px rgba(0,0,0,0.40);--r-xl:24px;--r-lg:16px;}
+.stApp{background:radial-gradient(ellipse 60% 40% at 0% 0%,rgba(232,99,10,0.12),transparent),linear-gradient(180deg,#060f1c 0%,#040b16 100%);color:var(--text);}
+.block-container{max-width:1400px;padding-top:1rem;padding-bottom:3rem;}
 [data-testid="stHeader"]{background:transparent;}
-[data-testid="stSidebar"]{background:var(--panel) !important;border-right:1px solid var(--border-soft) !important;}
+[data-testid="stSidebar"]{background:var(--surface) !important;border-right:1px solid var(--border-soft) !important;}
 [data-testid="stSidebar"] *{color:var(--text) !important;}
 h1,h2,h3,h4,h5,h6,p,label,div,span{color:var(--text);}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:24px;background:rgba(4,8,70,0.80);border:1px solid var(--border-soft);border-radius:24px;padding:18px 24px;box-shadow:var(--shadow);margin-bottom:22px;}
-.brand-wrap{display:flex;align-items:center;gap:16px;}
-.brand-mark{width:58px;height:58px;border-radius:14px;background:linear-gradient(135deg,var(--primary2),var(--primary));display:flex;align-items:center;justify-content:center;color:white !important;font-size:1.8rem;font-weight:800;box-shadow:0 10px 30px rgba(18,55,255,0.35);}
-.brand-title{font-size:1.5rem;font-weight:800;line-height:1;margin:0;}
-.brand-subtitle{margin:4px 0 0 0;color:var(--muted) !important;font-size:0.95rem;}
-.hero{background:linear-gradient(180deg,rgba(6,10,83,0.92) 0%,rgba(4,7,58,0.92) 100%);border:1px solid var(--border);border-radius:var(--radius-xl);padding:30px;box-shadow:var(--shadow);margin-bottom:20px;}
-.hero-title{font-size:2.2rem;font-weight:800;margin-bottom:0.4rem;}
-.hero-sub{color:var(--muted) !important;font-size:1rem;margin-bottom:1.4rem;max-width:900px;}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
-.mcard{background:rgba(255,255,255,0.04);border:1px solid var(--border-soft);border-radius:var(--radius-lg);padding:18px 20px;backdrop-filter:blur(8px);}
-.mcard-label{color:var(--muted) !important;font-size:0.9rem;margin-bottom:8px;}
-.mcard-val{font-size:1.7rem;font-weight:800;line-height:1.1;color:var(--text) !important;}
-.mcard-val.accent{color:#7b9fff !important;}
-.sec-title{font-size:1rem;font-weight:700;border-left:3px solid var(--primary2);padding-left:12px;margin:20px 0 12px 0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;background:rgba(12,29,48,0.92);border:1px solid var(--border-soft);border-bottom:2px solid var(--orange);border-radius:20px;padding:16px 28px;margin-bottom:22px;box-shadow:var(--shadow);}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand-mark{width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,#E8630A,#ff7e2e);display:flex;align-items:center;justify-content:center;font-size:1.35rem;font-weight:900;color:#fff;box-shadow:0 6px 20px rgba(232,99,10,0.45);flex-shrink:0;}
+.brand-name{font-size:1.2rem;font-weight:800;margin:0;line-height:1.1;}
+.brand-sub{color:var(--muted) !important;font-size:0.8rem;margin:3px 0 0 0;}
+.top-badge{background:rgba(232,99,10,0.18);border:1px solid var(--border);color:var(--orange) !important;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:700;}
+.hero{background:linear-gradient(135deg,rgba(12,29,48,0.92),rgba(8,20,36,0.95));border:1px solid var(--border);border-radius:var(--r-xl);padding:28px 32px;margin-bottom:22px;box-shadow:var(--shadow);}
+.hero-title{font-size:1.9rem;font-weight:800;margin-bottom:4px;}
+.hero-sub{color:var(--muted) !important;font-size:0.92rem;margin-bottom:22px;}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.mcard{background:rgba(255,255,255,0.04);border:1px solid var(--border-soft);border-radius:var(--r-lg);padding:18px 20px;}
+.mcard-label{color:var(--muted) !important;font-size:0.8rem;margin-bottom:6px;}
+.mcard-val{font-size:1.7rem;font-weight:800;line-height:1;}
+.mcard-val.accent{color:var(--orange) !important;}
+.sec-title{font-size:1rem;font-weight:700;border-left:3px solid var(--orange);padding-left:12px;margin:20px 0 12px 0;}
+div[data-testid="stFileUploader"] section{background:rgba(232,99,10,0.04) !important;border:1.5px dashed rgba(232,99,10,0.35) !important;border-radius:16px !important;}
+div[data-testid="stDataFrame"]{border:1px solid var(--border-soft) !important;border-radius:16px !important;overflow:hidden !important;}
+.stDownloadButton>button,.stButton>button{background:linear-gradient(135deg,#E8630A,#ff7e2e) !important;color:#fff !important;border:none !important;border-radius:12px !important;font-weight:700 !important;padding:0.65rem 1.3rem !important;box-shadow:0 6px 18px rgba(232,99,10,0.35) !important;}
+.stAlert{border-radius:14px !important;}
+.hr{height:1px;background:linear-gradient(90deg,var(--orange),rgba(232,99,10,0.1),transparent);border:none;margin:24px 0;}
 .alerta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:4px;}
 .alerta-card{border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:6px;}
 .alerta-card.red{background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.45);}
 .alerta-card.yellow{background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.40);}
 .alerta-card.green{background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.35);}
+.alerta-icon{font-size:1.4rem;}
 .alerta-label{font-size:0.8rem;font-weight:600;opacity:0.75;}
 .alerta-val{font-size:2rem;font-weight:900;line-height:1;}
 .alerta-card.red .alerta-val{color:#f87171 !important;}
 .alerta-card.yellow .alerta-val{color:#fbbf24 !important;}
 .alerta-card.green .alerta-val{color:#4ade80 !important;}
 .alerta-sub{font-size:0.72rem;opacity:0.6;}
-div[data-testid="stFileUploader"] section{background:rgba(255,255,255,0.03) !important;border:1px dashed rgba(88,117,255,0.45) !important;border-radius:18px !important;padding:8px !important;}
-div[data-testid="stDataFrame"]{border:1px solid var(--border-soft) !important;border-radius:18px !important;overflow:hidden !important;background:rgba(255,255,255,0.02) !important;}
-.stDownloadButton>button,.stButton>button{border-radius:14px !important;min-height:46px !important;padding:0.72rem 1.15rem !important;font-weight:800 !important;border:1px solid transparent !important;color:white !important;background:linear-gradient(135deg,var(--primary),var(--primary2)) !important;box-shadow:0 10px 24px rgba(18,55,255,0.28) !important;}
-.stAlert{border-radius:16px !important;}
-.hr{height:1px;background:linear-gradient(90deg,var(--primary2),rgba(63,93,255,0.1),transparent);border:none;margin:24px 0;}
-@media(max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.alerta-grid{grid-template-columns:1fr;}}
-@media(max-width:700px){.metrics{grid-template-columns:1fr;}.hero-title{font-size:1.8rem;}}
+@media(max-width:950px){.metrics{grid-template-columns:repeat(2,1fr);}.top-badge{display:none;}.alerta-grid{grid-template-columns:1fr;}}
 </style>""", unsafe_allow_html=True)
 
 
@@ -77,12 +65,14 @@ def clean(text):
     text = re.sub(r"Resumo extra[i\u00ed]do por[^\n]*(NEXTSUPPLY\d+\))[^\n]*", "", text, flags=re.I)
     text = re.sub(r"\bP[a\u00e1]g[.:]\s*\d+/\d+\b", "", text, flags=re.I)
     text = re.sub(r"(?is)Resumo extra[i\u00ed]do por.*?(?=\n|$)", "", text)
-    # Remove cabecalho de pagina do Petronect que aparece no meio dos blocos
+    # Remove cabecalho de pagina que aparece no meio dos blocos de item
+    # Formato: "Resumo da Oportunidade  Número da Oportunidade\nNome...  XXXXXXXXXX"
     text = re.sub(
         r"(?im)^Resumo da Oportunidade\s+N[u\u00fa]mero da Oportunidade\s*\n.*?\d{10}\s*\n?",
         "",
         text,
     )
+    # Formato alternativo: "Número da Oportunidade\nXXXXXXXXXX\nResumo da Oportunidade\nNome..."
     text = re.sub(
         r"(?im)^N[u\u00fa]mero da Oportunidade\s*\n\s*\d{10}\s*\n\s*Resumo da Oportunidade\s*\n[^\n]+\n?",
         "",
@@ -106,7 +96,7 @@ def brand_regex(term):
     return r"\b" + r"[\s\-]?".join(map(re.escape, parts)) + r"\b"
 
 
-# ── Categorias ────────────────────────────────────────────────────────────────
+# ── Classificacao por categoria ───────────────────────────────────────────────
 
 CATEGORIAS = [
     ("Valvula",           ["valv", "ball valve", "gate valve", "check valve", "globo", "borboleta", "esfera", "gaveta", "retencao", "alivio"]),
@@ -138,6 +128,11 @@ def categorize(text):
 # ── Deteccao de recorrencia ───────────────────────────────────────────────────
 
 def detect_recurring(df_new, df_hist):
+    """
+    Marca itens do df_new que ja apareceram no historico (df_hist).
+    Criterio: mesmo Fabricante/PN (se preenchido) OU mesma descricao longa normalizada.
+    Retorna serie com True/False.
+    """
     if df_hist.empty or df_new.empty:
         return pd.Series([False] * len(df_new), index=df_new.index)
 
@@ -147,23 +142,31 @@ def detect_recurring(df_new, df_hist):
     hist_fab  = set(df_hist["Fabricante/PN"].dropna().map(norm)) - {"", "nan"}
     hist_desc = set(df_hist["Descricao longa do item"].dropna().map(norm)) - {"", "nan"}
 
-    def is_rec(row):
+    def is_recorrente(row):
         fab  = norm(row.get("Fabricante/PN", ""))
         desc = norm(row.get("Descricao longa do item", ""))
-        return (fab and fab in hist_fab) or (desc and desc in hist_desc)
+        if fab and fab in hist_fab:
+            return True
+        if desc and desc in hist_desc:
+            return True
+        return False
 
-    return df_new.apply(is_rec, axis=1)
+    return df_new.apply(is_recorrente, axis=1)
 
 
 # ── Alertas de prazo ─────────────────────────────────────────────────────────
 
 def classify_prazo(data_str):
+    """Retorna (dias_restantes, cor) dado string 'dd/mm/yyyy'."""
     try:
         d = datetime.strptime(str(data_str).strip(), "%d/%m/%Y").date()
         delta = (d - date.today()).days
-        if delta <= 1:   return delta, "red"
-        elif delta <= 3: return delta, "yellow"
-        else:            return delta, "green"
+        if delta <= 1:
+            return delta, "red"
+        elif delta <= 3:
+            return delta, "yellow"
+        else:
+            return delta, "green"
     except Exception:
         return None, "green"
 
@@ -171,32 +174,62 @@ def classify_prazo(data_str):
 def render_alertas(df):
     if df is None or df.empty or "Data (cotacao)" not in df.columns:
         return
+
+    # Agrupar por oportunidade, pegar o prazo unico
     ops = df.drop_duplicates(subset=["Numero da Oportunidade"])[["Numero da Oportunidade", "Data (cotacao)"]].copy()
     ops["_dias"], ops["_cor"] = zip(*ops["Data (cotacao)"].map(classify_prazo))
-    n_red    = int((ops["_cor"] == "red").sum())
-    n_yellow = int((ops["_cor"] == "yellow").sum())
-    n_green  = int((ops["_cor"] == "green").sum())
+
+    red_ops    = ops[ops["_cor"] == "red"]
+    yellow_ops = ops[ops["_cor"] == "yellow"]
+    green_ops  = ops[ops["_cor"] == "green"]
+
+    n_red    = len(red_ops)
+    n_yellow = len(yellow_ops)
+    n_green  = len(green_ops)
+
+    # Texto de apoio
+    def label_red(n):
+        if n == 0: return "Nenhuma urgente"
+        return str(n) + " oportunidade" + ("s" if n > 1 else "") + " vence" + ("m" if n > 1 else "") + " hoje ou amanha"
+
+    def label_yellow(n):
+        if n == 0: return "Nenhuma em atencao"
+        return str(n) + " vence" + ("m" if n > 1 else "") + " em 2 a 3 dias"
+
+    def label_green(n):
+        if n == 0: return "Nenhuma com prazo folgado"
+        return str(n) + " com prazo confortavel"
 
     sec("Alertas de Prazo")
     st.markdown(
         '<div class="alerta-grid">'
-        '<div class="alerta-card red"><div class="alerta-label">URGENTE - Vence hoje / amanha</div>'
+        '<div class="alerta-card red">'
+        '<div class="alerta-icon">🔴</div>'
+        '<div class="alerta-label">URGENTE — Vence hoje / amanha</div>'
         '<div class="alerta-val">' + str(n_red) + '</div>'
-        '<div class="alerta-sub">' + (str(n_red) + " oportunidade(s)" if n_red else "Nenhuma urgente") + '</div></div>'
-        '<div class="alerta-card yellow"><div class="alerta-label">ATENCAO - Vence em 2 a 3 dias</div>'
+        '<div class="alerta-sub">' + label_red(n_red) + '</div>'
+        '</div>'
+        '<div class="alerta-card yellow">'
+        '<div class="alerta-icon">🟡</div>'
+        '<div class="alerta-label">ATENCAO — Vence em 2 a 3 dias</div>'
         '<div class="alerta-val">' + str(n_yellow) + '</div>'
-        '<div class="alerta-sub">' + (str(n_yellow) + " oportunidade(s)" if n_yellow else "Nenhuma em atencao") + '</div></div>'
-        '<div class="alerta-card green"><div class="alerta-label">OK - Prazo confortavel</div>'
+        '<div class="alerta-sub">' + label_yellow(n_yellow) + '</div>'
+        '</div>'
+        '<div class="alerta-card green">'
+        '<div class="alerta-icon">🟢</div>'
+        '<div class="alerta-label">OK — Prazo confortavel</div>'
         '<div class="alerta-val">' + str(n_green) + '</div>'
-        '<div class="alerta-sub">' + (str(n_green) + " oportunidade(s)" if n_green else "Nenhuma") + '</div></div>'
+        '<div class="alerta-sub">' + label_green(n_green) + '</div>'
+        '</div>'
         '</div>',
         unsafe_allow_html=True
     )
+
     if n_red > 0:
-        red_nums = ops[ops["_cor"] == "red"]["Numero da Oportunidade"]
         with st.expander("Ver oportunidades urgentes"):
-            urgentes = df[df["Numero da Oportunidade"].isin(red_nums)]
-            show_cols = [c for c in ["Numero da Oportunidade", "Data (cotacao)", "Responsavel", "Descricao longa do item"] if c in urgentes.columns]
+            urgentes = df[df["Numero da Oportunidade"].isin(red_ops["Numero da Oportunidade"])]
+            show_cols = ["Numero da Oportunidade", "Data (cotacao)", "Responsavel", "Descricao longa do item"]
+            show_cols = [c for c in show_cols if c in urgentes.columns]
             st.dataframe(urgentes[show_cols], use_container_width=True, hide_index=True)
 
 
@@ -258,16 +291,6 @@ def extract_qty_unit(block, item_id):
     return "", ""
 
 
-def extract_desc(block):
-    b = re.split(r"(?i)ENDERE[C\u00c7]O DE ENTREGA", block, maxsplit=1)[0]
-    m = re.search(
-        r"(?is)Descri[c\u00e7][a\u00e3]o de Item\s*(.*?)(?:\nDescri[c\u00e7][a\u00e3]o longa|\Z)",
-        b
-    )
-    result = one_line(m.group(1)) if m else ""
-    return result if result.strip() else "Sem descricao"
-
-
 def extract_long(block):
     b = re.split(r"(?i)ENDERE[C\u00c7]O DE ENTREGA", block, maxsplit=1)[0]
     b = re.split(r"(?i)Declara[c\u00e7][o\u00f5]es envolvidas", b, maxsplit=1)[0]
@@ -293,7 +316,7 @@ def extract_manufacturer(block):
     b = re.split(r"(?i)Resumo da Oportunidade", b, maxsplit=1)[0]
     m = re.search(r"(?i)Tp:\s*(.+?)(?=\s*-{5,}|\s*ENDERE|\s*Resumo|\s*Dados|\s*Declara|$)", b, re.S)
     if m:
-        fab = re.sub(r"\s{2,}", " ", m.group(1)).strip()
+        fab = one_line(m.group(1))
         fab = re.sub(r"[\s/\-|:;,]+$", "", fab).strip()
         if fab:
             return fab
@@ -308,186 +331,36 @@ def extract_manufacturer(block):
 
 # ── Atribuicao ────────────────────────────────────────────────────────────────
 
-DEFAULT_TEAM = [
-    {"name": "Viviana", "brands": ["kongsberg", "yamada", "dnh", "evac", "steyr"]},
-    {"name": "Helio",   "brands": ["abb", "schneider", "siemens", "rittal", "phoenix", "weidmuller", "rockwell"]},
-    {"name": "Mayara",  "brands": ["skf", "emerson"]},
-]
-
-
-def sidebar_team():
-    with st.sidebar:
-        st.markdown("## Equipe")
-        st.caption("Configure os responsaveis e as marcas de cada um.")
-        n = st.number_input("Nr de responsaveis", min_value=1, max_value=10, value=len(DEFAULT_TEAM), step=1)
-        team = []
-        for i in range(int(n)):
-            default = DEFAULT_TEAM[i] if i < len(DEFAULT_TEAM) else {"name": "Responsavel " + str(i+1), "brands": []}
-            with st.expander("Responsavel " + str(i+1), expanded=(i == 0)):
-                name = st.text_input("Nome", value=default["name"], key="rname_" + str(i))
-                brands_raw = st.text_area(
-                    "Marcas associadas (uma por linha)",
-                    value="\n".join(default["brands"]),
-                    height=100,
-                    key="rbrands_" + str(i),
-                )
-                brands = [b.strip().lower() for b in brands_raw.splitlines() if b.strip()]
-                team.append({"name": name, "brands": brands})
-        st.markdown("---")
-        st.markdown("Next Supply\nSeparador de OPS Petronect")
-    return team
-
-
 def assign(df, team):
     if df.empty:
         df["Responsavel"] = pd.Series(dtype="object")
         return df
-
     corpus = (
-        df["Descricao de Item"].fillna("") + " " +
         df["Descricao longa do item"].fillna("") + " " +
         df["Fabricante/PN"].fillna("")
     ).str.lower()
-
     df["Responsavel"] = pd.NA
-
-    # Passo 1 — marcas fixas por responsavel
     for member in team:
         for brand in member.get("brands", []):
             mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(brand), regex=True, na=False)
             df.loc[mask, "Responsavel"] = member["name"]
-
-    # Passo 2 — balanceamento proporcional dos restantes
     names = [m["name"] for m in team]
     if not names:
         return df
-
     total_na = int(df["Responsavel"].isna().sum())
     if total_na == 0:
         return df
-
     n = len(names)
     base = total_na // n
     extra = total_na % n
-    targets = {names[i]: base + (1 if i < extra else 0) for i in range(n)}
+    target = {names[i]: base + (1 if i < extra else 0) for i in range(n)}
     counts = {name: 0 for name in names}
-
-    chave = (
-        df["Descricao de Item"].fillna("").str.strip().str.lower() + "|" +
-        df["Descricao longa do item"].fillna("").str.strip().str.lower() + "|" +
-        df["Fabricante/PN"].fillna("").str.strip().str.lower()
-    )
-
+    chave = df["Descricao longa do item"].fillna("").str.strip().str.lower()
     for _, grp in df[df["Responsavel"].isna()].groupby(chave, sort=False):
-        chosen = max(names, key=lambda name: targets[name] - counts[name])
+        chosen = max(names, key=lambda name: target[name] - counts[name])
         df.loc[grp.index, "Responsavel"] = chosen
         counts[chosen] += len(grp)
-
     return df
-
-
-
-# ── Historico de Precos por PN ────────────────────────────────────────────────
-
-def load_historico(file_bytes):
-    """Le a aba DADOS da planilha de analise e retorna DataFrame indexado por PN."""
-    try:
-        df = pd.read_excel(BytesIO(file_bytes), sheet_name="DADOS", dtype=str)
-        df.columns = [c.strip() for c in df.columns]
-        df["_pn"] = df["PART NUMBER"].fillna("").str.strip().str.upper()
-        return df[df["_pn"] != ""].reset_index(drop=True)
-    except Exception:
-        return pd.DataFrame()
-
-
-def enriquecer_com_historico(df_extr, df_preco):
-    """
-    Adiciona 3 colunas ao df extraido consultando historico por PN:
-      - Hist: Ultima analise  (Ganhamos / Perdemos / Sem historico)
-      - Hist: Dif ultima      (ex: -R$ 10.254 (-38%))
-      - Hist: Dif media hist  (ex: -22% medio)
-
-    Logica da planilha: DIFERENCA negativa = ganhamos (fomos mais baratos).
-                        DIFERENCA positiva = perdemos (fomos mais caros).
-    """
-    cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"]
-    for c in cols_out:
-        df_extr[c] = ""
-
-    if df_preco.empty:
-        return df_extr
-
-    def fmt_brl(v):
-        sinal = "+" if v > 0 else ""
-        return sinal + "R$ {:,.2f}".format(v).replace(",", "X").replace(".", ",").replace("X", ".")
-
-    def fmt_pct(v):
-        sinal = "+" if v > 0 else ""
-        return sinal + "{:.1f}%".format(v * 100)
-
-    for idx, row in df_extr.iterrows():
-        pn = str(row.get("Fabricante/PN", "") or "").strip().upper()
-        if not pn:
-            continue
-
-        sub = df_preco[df_preco["_pn"] == pn].copy()
-        if sub.empty:
-            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
-            continue
-
-        # Converte DIFERENCA VALOR para numerico
-        col_dif = next((c for c in sub.columns if "DIFE" in c.upper() and "VALOR" in c.upper()), None)
-        col_pct = next((c for c in sub.columns if c.strip() == "%"), None)
-        col_res = next((c for c in sub.columns if "RESULTADO" in c.upper()), None)
-        col_dat = next((c for c in sub.columns if "DATA" in c.upper()), None)
-
-        if col_dif:
-            sub["_dif"] = pd.to_numeric(sub[col_dif], errors="coerce")
-        else:
-            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
-            continue
-
-        if col_pct:
-            sub["_pct"] = pd.to_numeric(sub[col_pct], errors="coerce")
-
-        # Ordena por data para pegar a mais recente
-        if col_dat:
-            sub = sub.sort_values(col_dat, ascending=True)
-
-        # Ultima analise com resultado definido
-        if col_res:
-            sub_com_res = sub[sub[col_res].fillna("").str.strip().str.lower().isin(["ganhamos", "perdemos"])]
-        else:
-            sub_com_res = sub
-
-        if sub_com_res.empty:
-            df_extr.at[idx, "Hist: Ultima analise"] = "Sem historico"
-            continue
-
-        ultima = sub_com_res.iloc[-1]
-        res_ultima = str(ultima.get(col_res, "") or "").strip()
-        dif_ultima = ultima.get("_dif", None)
-        pct_ultima = ultima.get("_pct", None) if col_pct else None
-
-        # Ultima analise: Ganhamos ou Perdemos
-        df_extr.at[idx, "Hist: Ultima analise"] = res_ultima if res_ultima else "Sem historico"
-
-        # Dif ultima
-        if pd.notna(dif_ultima):
-            txt = fmt_brl(dif_ultima)
-            if pd.notna(pct_ultima):
-                txt += " (" + fmt_pct(pct_ultima) + ")"
-            df_extr.at[idx, "Hist: Dif ultima"] = txt
-
-        # Media historica da diferenca %
-        if col_pct and "_pct" in sub.columns:
-            vals = sub["_pct"].dropna()
-            if not vals.empty:
-                media = vals.mean()
-                df_extr.at[idx, "Hist: Dif media hist"] = fmt_pct(media) + " medio"
-
-    return df_extr
-
 
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
@@ -496,13 +369,11 @@ COLS = [
     "Numero da Oportunidade", "Tipo de Oportunidade", "Criterio de Julgamento",
     "Fim do periodo de cotacao", "Data (cotacao)", "Hora (cotacao)",
     "Local de Entrega", "Item", "Quantidade", "Unidade de medida",
-    "Descricao de Item", "Descricao longa do item",
-    "Fabricante/PN", "Categoria", "Recorrente", "Responsavel",
-    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist",
+    "Descricao longa do item", "Fabricante/PN", "Categoria", "Recorrente", "Responsavel",
 ]
 
 
-def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
+def process_zip(zip_bytes, team, df_hist=None):
     rows, log = [], []
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -526,9 +397,8 @@ def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
                     if not item_id:
                         continue
                     qty, unit = extract_qty_unit(block, item_id)
-                    desc   = extract_desc(block)
                     long_d = extract_long(block)
-                    fab    = extract_manufacturer(block)
+                    fab = extract_manufacturer(block)
                     rows.append({
                         "Numero da Oportunidade":    header["numero"],
                         "Tipo de Oportunidade":      header["tipo"],
@@ -538,16 +408,14 @@ def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
                         "Item":                      item_id,
                         "Quantidade":                qty,
                         "Unidade de medida":         unit,
-                        "Descricao de Item":         desc,
                         "Descricao longa do item":   long_d,
                         "Fabricante/PN":             fab,
-                        "Categoria":                 categorize(long_d or desc),
+                        "Categoria":                 categorize(long_d),
                     })
                     count += 1
                 log.append("OK: " + pdf.name + " - " + str(count) + " item(ns).")
             except Exception as e:
                 log.append("ERRO: " + pdf.name + " - " + str(e))
-
     if not rows:
         return pd.DataFrame(columns=COLS), log
 
@@ -559,14 +427,11 @@ def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
     df["Data (cotacao)"] = dt.dt.strftime("%d/%m/%Y")
     df["Hora (cotacao)"] = dt.dt.strftime("%H:%M:%S")
 
+    # Deteccao de recorrencia
     hist = df_hist if df_hist is not None and not df_hist.empty else pd.DataFrame()
     df["Recorrente"] = detect_recurring(df, hist).map({True: "Sim", False: "Nao"})
 
     df = assign(df, team)
-
-    # Enriquece com historico de precos se disponivel
-    if df_preco is not None and not df_preco.empty:
-        df = enriquecer_com_historico(df, df_preco)
 
     for col in COLS:
         if col not in df.columns:
@@ -576,15 +441,15 @@ def process_zip(zip_bytes, team, df_hist=None, df_preco=None):
 
 # ── Excel formatado ───────────────────────────────────────────────────────────
 
-HDR_FILL  = PatternFill("solid", fgColor="02053D")
+HDR_FILL  = PatternFill("solid", fgColor="1A3A5C")
 HDR_FONT  = Font(name="Arial", bold=True, color="FFFFFF", size=10)
-ODD_FILL  = PatternFill("solid", fgColor="F0F2FF")
+ODD_FILL  = PatternFill("solid", fgColor="F2F7FC")
 EVEN_FILL = PatternFill("solid", fgColor="FFFFFF")
 REC_FILL  = PatternFill("solid", fgColor="FFF3CD")
 BODY_FONT = Font(name="Arial", size=10)
 CENTER    = Alignment(horizontal="center", vertical="center", wrap_text=False)
 LEFT      = Alignment(horizontal="left", vertical="center", wrap_text=True)
-THIN      = Side(style="thin", color="C8CEEA")
+THIN      = Side(style="thin", color="D0D8E4")
 BORDER    = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 COL_LABELS = {
@@ -598,15 +463,11 @@ COL_LABELS = {
     "Item":                      "Item",
     "Quantidade":                "Qtd",
     "Unidade de medida":         "Un",
-    "Descricao de Item":         "Descricao Curta",
-    "Descricao longa do item":   "Descricao Longa",
+    "Descricao longa do item":   "Descricao",
     "Fabricante/PN":             "Fabricante / PN",
     "Categoria":                 "Categoria",
     "Recorrente":                "Recorrente",
     "Responsavel":               "Responsavel",
-    "Hist: Ultima analise":      "Ultima Analise",
-    "Hist: Dif ultima":          "Dif Ultima (R$/%)",
-    "Hist: Dif media hist":      "Dif Media Hist",
 }
 
 COL_WIDTHS = {
@@ -620,18 +481,14 @@ COL_WIDTHS = {
     "Item":                       6,
     "Quantidade":                 8,
     "Unidade de medida":          8,
-    "Descricao de Item":         32,
-    "Descricao longa do item":   50,
+    "Descricao longa do item":   55,
     "Fabricante/PN":             22,
-    "Categoria":                 16,
+    "Categoria":                 18,
     "Recorrente":                12,
-    "Responsavel":               14,
-    "Hist: Ultima analise":      14,
-    "Hist: Dif ultima":          22,
-    "Hist: Dif media hist":      16,
+    "Responsavel":               16,
 }
 
-WRAP_COLS = {"Descricao de Item", "Descricao longa do item", "Local de Entrega"}
+WRAP_COLS = {"Descricao longa do item", "Local de Entrega"}
 
 
 def _format_sheet(ws, df, title):
@@ -639,45 +496,28 @@ def _format_sheet(ws, df, title):
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df.columns))
     tc = ws.cell(1, 1, title)
     tc.font = Font(name="Arial", bold=True, color="FFFFFF", size=13)
-    tc.fill = PatternFill("solid", fgColor="1237FF")
+    tc.fill = PatternFill("solid", fgColor="E8630A")
     tc.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
     for ci, col in enumerate(df.columns, 1):
         c = ws.cell(2, ci, COL_LABELS.get(col, col))
-        c.font = HDR_FONT; c.fill = HDR_FILL; c.alignment = CENTER; c.border = BORDER
+        c.font = HDR_FONT
+        c.fill = HDR_FILL
+        c.alignment = CENTER
+        c.border = BORDER
     ws.row_dimensions[2].height = 22
     has_wrap = any(col in WRAP_COLS for col in df.columns)
-    HIST_COL = "Hist: Ultima analise"
-    GANHOU_FILL = PatternFill("solid", fgColor="C8E6C9")  # verde
-    PERDEU_FILL = PatternFill("solid", fgColor="FFCDD2")  # vermelho
-    SEM_FILL    = PatternFill("solid", fgColor="E8EAF6")  # cinza azulado
-
     for ri, (_, row) in enumerate(df.iterrows(), 3):
         is_rec = str(row.get("Recorrente", "")).strip().lower() == "sim"
         fill = REC_FILL if is_rec else (ODD_FILL if ri % 2 else EVEN_FILL)
-        resultado_hist = str(row.get(HIST_COL, "")).strip().lower()
-
         for ci, col in enumerate(df.columns, 1):
             val = row[col]
             val = "" if pd.isna(val) else val
             c = ws.cell(ri, ci, val)
             c.font = BODY_FONT
+            c.fill = fill
             c.border = BORDER
             c.alignment = LEFT if col in WRAP_COLS else CENTER
-
-            # Colunas de historico recebem cor propria
-            if col in ("Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"):
-                if resultado_hist == "ganhamos":
-                    c.fill = GANHOU_FILL
-                    c.font = Font(name="Arial", size=10, bold=(col == "Hist: Ultima analise"), color="1B5E20")
-                elif resultado_hist == "perdemos":
-                    c.fill = PERDEU_FILL
-                    c.font = Font(name="Arial", size=10, bold=(col == "Hist: Ultima analise"), color="B71C1C")
-                else:
-                    c.fill = SEM_FILL
-                    c.font = Font(name="Arial", size=10, color="546E7A")
-            else:
-                c.fill = fill
         ws.row_dimensions[ri].height = 40 if has_wrap else 18
     for ci, col in enumerate(df.columns, 1):
         ws.column_dimensions[get_column_letter(ci)].width = COL_WIDTHS.get(col, 18)
@@ -689,25 +529,30 @@ def _format_resumo(ws, resumo_df):
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3)
     tc = ws.cell(1, 1, "Resumo de Distribuicao")
     tc.font = Font(name="Arial", bold=True, color="FFFFFF", size=13)
-    tc.fill = PatternFill("solid", fgColor="1237FF")
+    tc.fill = PatternFill("solid", fgColor="E8630A")
     tc.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
     for ci, label in enumerate(["Responsavel", "Itens", "%"], 1):
         c = ws.cell(2, ci, label)
-        c.font = HDR_FONT; c.fill = HDR_FILL; c.alignment = CENTER; c.border = BORDER
+        c.font = HDR_FONT
+        c.fill = HDR_FILL
+        c.alignment = CENTER
+        c.border = BORDER
     ws.row_dimensions[2].height = 22
     for ri, (_, row) in enumerate(resumo_df.iterrows(), 3):
         fill = ODD_FILL if ri % 2 else EVEN_FILL
         for ci, val in enumerate([row["Responsavel"], row["Itens"], str(row["%"]) + "%"], 1):
             c = ws.cell(ri, ci, val)
-            c.font = BODY_FONT; c.fill = fill; c.border = BORDER; c.alignment = CENTER
+            c.font = BODY_FONT
+            c.fill = fill
+            c.border = BORDER
+            c.alignment = CENTER
         ws.row_dimensions[ri].height = 18
-    for col, w in zip("ABC", [20, 10, 10]):
+    for col, w in zip("ABC", [24, 10, 10]):
         ws.column_dimensions[col].width = w
 
 
 def to_excel(df, team):
-    names = [m["name"] for m in team]
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         if df.empty:
@@ -724,15 +569,14 @@ def to_excel(df, team):
             "%": round((df["Responsavel"] == m["name"]).sum() / len(df) * 100, 1),
         } for m in team])
         resumo.to_excel(writer, sheet_name="Resumo", index=False)
-
     wb = load_workbook(BytesIO(buf.getvalue()))
     for member in team:
         name = member["name"][:31]
         if name in wb.sheetnames:
             sub = df[df["Responsavel"] == member["name"]]
-            _format_sheet(wb[name], sub.reset_index(drop=True), "Next Supply - " + member["name"])
+            _format_sheet(wb[name], sub.reset_index(drop=True), "Value Comercial - " + name)
     if "Consolidado" in wb.sheetnames:
-        _format_sheet(wb["Consolidado"], df.reset_index(drop=True), "Next Supply - Consolidado")
+        _format_sheet(wb["Consolidado"], df.reset_index(drop=True), "Value Comercial - Consolidado")
     if "Resumo" in wb.sheetnames:
         resumo = pd.DataFrame([{
             "Responsavel": m["name"],
@@ -740,20 +584,46 @@ def to_excel(df, team):
             "%": round((df["Responsavel"] == m["name"]).sum() / len(df) * 100, 1),
         } for m in team])
         _format_resumo(wb["Resumo"], resumo)
-
     out = BytesIO()
     wb.save(out)
     return out.getvalue()
+
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+
+DEFAULT_TEAM = [
+    {"name": "Responsavel 1", "brands": ["parker", "snap-tite", "versa valves", "norman filter"]},
+    {"name": "Responsavel 2", "brands": ["autoclave engineers", "hughes pumps", "momec"]},
+    {"name": "Responsavel 3", "brands": ["teldor", "federal signal", "siddhagiri"]},
+]
+
+
+def sidebar_team():
+    with st.sidebar:
+        st.markdown("## Equipe")
+        st.caption("Configure os responsaveis e marcas de cada um.")
+        n = st.number_input("Nr de responsaveis", min_value=1, max_value=8, value=3, step=1)
+        team = []
+        for i in range(int(n)):
+            default = DEFAULT_TEAM[i] if i < len(DEFAULT_TEAM) else {"name": "Responsavel " + str(i+1), "brands": []}
+            with st.expander("Responsavel " + str(i+1), expanded=(i == 0)):
+                name = st.text_input("Nome", value=default["name"], key="rname_" + str(i))
+                brands_raw = st.text_area("Marcas (uma por linha)", value="\n".join(default["brands"]), height=90, key="rbrands_" + str(i))
+                brands = [b.strip().lower() for b in brands_raw.splitlines() if b.strip()]
+                team.append({"name": name, "brands": brands})
+        st.markdown("---")
+        st.markdown("Value Comercial\nIlha do Governador, RJ\n(21) 3975-5829")
+    return team
 
 
 # ── Interface ─────────────────────────────────────────────────────────────────
 
 def render_topbar():
     st.markdown(
-        '<div class="topbar"><div class="brand-wrap">'
-        '<div class="brand-mark">N</div>'
-        '<div><p class="brand-title">NEXT SUPPLY</p>'
-        '<p class="brand-subtitle">Separador de OPS Petronect</p></div></div></div>',
+        '<div class="topbar"><div class="brand"><div class="brand-mark">V</div>'
+        '<div><p class="brand-name">VALUE COMERCIAL</p>'
+        '<p class="brand-sub">Gestao de Oportunidades Petronect</p></div></div>'
+        '<div class="top-badge">OPS Petronect</div></div>',
         unsafe_allow_html=True
     )
 
@@ -764,14 +634,18 @@ def render_hero(df):
     resp   = df["Responsavel"].nunique() if df is not None and not df.empty else 0
     status = "Processado" if total > 0 else "Aguardando upload"
     st.markdown(
-        '<div class="hero"><div class="hero-title">Separador de OPS</div>'
-        '<div class="hero-sub">Faca upload do ZIP exportado do Petronect. '
-        'Para continuar o mes, carregue tambem o Excel mensal salvo anteriormente.</div>'
+        '<div class="hero"><div class="hero-title">Separador de Oportunidades</div>'
+        '<div class="hero-sub">Faca upload do ZIP do Petronect. Para continuar o mes, '
+        'carregue tambem o Excel mensal salvo anteriormente.</div>'
         '<div class="metrics">'
-        '<div class="mcard"><div class="mcard-label">Oportunidades</div><div class="mcard-val accent">' + str(ops) + '</div></div>'
-        '<div class="mcard"><div class="mcard-label">Itens extraidos</div><div class="mcard-val">' + str(total) + '</div></div>'
-        '<div class="mcard"><div class="mcard-label">Responsaveis ativos</div><div class="mcard-val">' + str(resp) + '</div></div>'
-        '<div class="mcard"><div class="mcard-label">Status</div><div class="mcard-val">' + status + '</div></div>'
+        '<div class="mcard"><div class="mcard-label">Oportunidades</div>'
+        '<div class="mcard-val accent">' + str(ops) + '</div></div>'
+        '<div class="mcard"><div class="mcard-label">Itens extraidos</div>'
+        '<div class="mcard-val">' + str(total) + '</div></div>'
+        '<div class="mcard"><div class="mcard-label">Responsaveis</div>'
+        '<div class="mcard-val">' + str(resp) + '</div></div>'
+        '<div class="mcard"><div class="mcard-label">Status</div>'
+        '<div class="mcard-val">' + status + '</div></div>'
         '</div></div>',
         unsafe_allow_html=True
     )
@@ -791,8 +665,6 @@ if "history" not in st.session_state:
     st.session_state["history"] = pd.DataFrame(columns=COLS)
 if "last_upload" not in st.session_state:
     st.session_state["last_upload"] = None
-if "df_preco" not in st.session_state:
-    st.session_state["df_preco"] = pd.DataFrame()
 
 team = sidebar_team()
 render_topbar()
@@ -822,38 +694,15 @@ if base_file:
 
 hr()
 
-sec("Planilha de Analise de Precos (opcional)")
-st.caption("Carregue a planilha de analise para ativar o historico de ganho/perda por Part Number nas colunas do cotador.")
-preco_file = st.file_uploader("Analise de Precos (.xlsx)", type=["xlsx"], key="preco_upload", label_visibility="collapsed")
-if preco_file:
-    try:
-        df_p = load_historico(preco_file.read())
-        if df_p.empty:
-            st.warning("Nao foi possivel ler a aba DADOS da planilha.")
-        else:
-            st.session_state["df_preco"] = df_p
-            n_pns = df_p["_pn"].nunique()
-            n_ganhos = int((df_p.get("Resultado Esperado", pd.Series()).str.strip().str.lower() == "ganhamos").sum())
-            n_perdidos = int((df_p.get("Resultado Esperado", pd.Series()).str.strip().str.lower() == "perdemos").sum())
-            st.success(f"Historico carregado: {len(df_p)} linhas | {n_pns} PNs unicos | {n_ganhos} ganhos | {n_perdidos} perdidos.")
-    except Exception as e:
-        st.error("Erro ao carregar planilha: " + str(e))
-
-hr()
-
-sec("Upload do arquivo ZIP")
-st.caption("Selecione o arquivo compactado com os PDFs das oportunidades do dia.")
+sec("Upload do ZIP do dia")
+st.caption("Selecione o ZIP exportado do portal Petronect com os PDFs das oportunidades do dia.")
 uploaded = st.file_uploader("Arquivo ZIP", type=["zip"], label_visibility="collapsed")
 df_today = None
 
 if uploaded and uploaded.name != st.session_state["last_upload"]:
     st.session_state["last_upload"] = uploaded.name
     with st.spinner("Processando PDFs..."):
-        df_today, log = process_zip(
-            uploaded.read(), team,
-            st.session_state["history"],
-            st.session_state["df_preco"] if not st.session_state["df_preco"].empty else None
-        )
+        df_today, log = process_zip(uploaded.read(), team, st.session_state["history"])
     if df_today is not None and not df_today.empty:
         st.session_state["history"] = (
             pd.concat([st.session_state["history"], df_today], ignore_index=True)
@@ -862,7 +711,7 @@ if uploaded and uploaded.name != st.session_state["last_upload"]:
         n_rec = int((df_today["Recorrente"] == "Sim").sum())
         msg = "OK: " + str(len(df_today)) + " item(ns) de " + str(df_today["Numero da Oportunidade"].nunique()) + " oportunidade(s)."
         if n_rec > 0:
-            msg += " | " + str(n_rec) + " item(ns) recorrente(s)."
+            msg += " | " + str(n_rec) + " item(ns) recorrente(s) detectado(s)."
         st.success(msg)
     else:
         st.warning("Nenhum item encontrado. Confira o log abaixo.")
@@ -870,16 +719,14 @@ if uploaded and uploaded.name != st.session_state["last_upload"]:
         for line in log:
             st.write(line)
 
-# Compatibilidade com historicos antigos
+# Garante colunas novas mesmo em historicos antigos
 if not st.session_state["history"].empty:
-    for col, default in [("Categoria", None), ("Recorrente", "Nao")]:
-        if col not in st.session_state["history"].columns:
-            if col == "Categoria":
-                st.session_state["history"]["Categoria"] = st.session_state["history"].get(
-                    "Descricao longa do item", pd.Series()
-                ).apply(categorize)
-            else:
-                st.session_state["history"][col] = default
+    if "Categoria" not in st.session_state["history"].columns:
+        st.session_state["history"]["Categoria"] = st.session_state["history"]["Descricao longa do item"].apply(
+            lambda x: categorize(x) if "Descricao longa do item" in st.session_state["history"].columns else "Outros"
+        )
+    if "Recorrente" not in st.session_state["history"].columns:
+        st.session_state["history"]["Recorrente"] = "Nao"
 
 df_view = st.session_state["history"] if not st.session_state["history"].empty else None
 render_hero(df_view)
@@ -894,8 +741,7 @@ if df_view is not None and not df_view.empty:
     with c1:
         f_resp = st.multiselect("Responsavel", options=sorted(df_view["Responsavel"].dropna().unique()))
     with c2:
-        cats = sorted(df_view["Categoria"].dropna().unique()) if "Categoria" in df_view.columns else []
-        f_cat = st.multiselect("Categoria", options=cats)
+        f_cat = st.multiselect("Categoria", options=sorted(df_view["Categoria"].dropna().unique()))
     with c3:
         f_rec = st.selectbox("Recorrente", ["Todos", "Sim", "Nao"])
     with c4:
@@ -925,17 +771,17 @@ if df_view is not None and not df_view.empty:
         st.caption("Por responsavel")
         dist_r = df_view["Responsavel"].value_counts().reset_index()
         dist_r.columns = ["Responsavel", "Itens"]
-        st.bar_chart(dist_r.set_index("Responsavel"), color="#3F5DFF")
+        st.bar_chart(dist_r.set_index("Responsavel"), color="#E8630A")
     with g2:
         st.caption("Por categoria")
         dist_c = df_view["Categoria"].value_counts().head(8).reset_index()
         dist_c.columns = ["Categoria", "Itens"]
-        st.bar_chart(dist_c.set_index("Categoria"), color="#1237FF")
+        st.bar_chart(dist_c.set_index("Categoria"), color="#1a6fc4")
     with g3:
         st.caption("Por tipo de oportunidade")
         dist_t = df_view["Tipo de Oportunidade"].value_counts().head(8).reset_index()
         dist_t.columns = ["Tipo", "Itens"]
-        st.bar_chart(dist_t.set_index("Tipo"), color="#7B9FFF")
+        st.bar_chart(dist_t.set_index("Tipo"), color="#7c3aed")
 
     hr()
     sec("Exportar")
@@ -945,7 +791,7 @@ if df_view is not None and not df_view.empty:
         st.download_button(
             "Excel do dia",
             data=to_excel(src, team),
-            file_name="nextsupply_ops_dia.xlsx",
+            file_name="value_ops_dia.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         st.caption("Somente o ultimo upload.")
@@ -953,7 +799,7 @@ if df_view is not None and not df_view.empty:
         st.download_button(
             "Excel mensal (acumulado)",
             data=to_excel(st.session_state["history"], team),
-            file_name="nextsupply_ops_mensal.xlsx",
+            file_name="value_ops_mensal.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         st.caption(str(len(st.session_state["history"])) + " itens acumulados. Salve para usar amanha.")
