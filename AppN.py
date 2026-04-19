@@ -412,7 +412,7 @@ def enriquecer_com_historico(df_extr, df_preco):
 
     Logica: DIFERENCA negativa = ganhamos. DIFERENCA positiva = perdemos.
     """
-    cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist"]
+    cols_out = ["Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist", "Hist: OP referencia"]
     for c in cols_out:
         df_extr[c] = ""
 
@@ -424,6 +424,7 @@ def enriquecer_com_historico(df_extr, df_preco):
     col_pct = next((c for c in df_preco.columns if c.strip() == "%"), None)
     col_res = next((c for c in df_preco.columns if "RESULTADO" in c.upper()), None)
     col_dat = next((c for c in df_preco.columns if c.strip() == "DATA"), None)
+    col_op  = next((c for c in df_preco.columns if c.strip() == "OP"), None)
 
     if not col_dif:
         return df_extr
@@ -516,6 +517,11 @@ def enriquecer_com_historico(df_extr, df_preco):
             if not vals.empty:
                 df_extr.at[idx, "Hist: Dif media hist"] = fmt_pct(vals.mean()) + " medio"
 
+        if col_op:
+            op_ref = str(ultima.get(col_op, "") or "").strip()
+            if op_ref:
+                df_extr.at[idx, "Hist: OP referencia"] = op_ref
+
     return df_extr
 
 
@@ -527,7 +533,7 @@ COLS = [
     "Local de Entrega", "Item", "Quantidade", "Unidade de medida",
     "Descricao de Item", "Descricao longa do item",
     "Fabricante/PN", "Categoria", "Recorrente", "Responsavel",
-    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist",
+    "Hist: Ultima analise", "Hist: Dif ultima", "Hist: Dif media hist", "Hist: OP referencia",
 ]
 
 
@@ -636,6 +642,7 @@ COL_LABELS = {
     "Hist: Ultima analise":      "Ultima Analise",
     "Hist: Dif ultima":          "Dif Ultima (R$/%)",
     "Hist: Dif media hist":      "Dif Media Hist",
+    "Hist: OP referencia":       "OP Referencia",
 }
 
 COL_WIDTHS = {
@@ -658,6 +665,7 @@ COL_WIDTHS = {
     "Hist: Ultima analise":      14,
     "Hist: Dif ultima":          22,
     "Hist: Dif media hist":      16,
+    "Hist: OP referencia":       16,
 }
 
 WRAP_COLS = {"Descricao de Item", "Descricao longa do item", "Local de Entrega"}
