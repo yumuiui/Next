@@ -377,11 +377,11 @@ def assign(df, team):
 
     df["Responsavel"] = pd.NA
 
-    # Inaplica -> Viviana (primeira da lista por convencao)
-    viviana = team[0]["name"] if team else None
+    # Inaplica -> sempre Viviana (busca por nome na equipe)
+    viviana = next((m["name"] for m in team if "viv" in m["name"].lower()), None)
     if viviana:
         df.loc[
-            df["Tipo de Oportunidade"].fillna("").str.contains("Inaplica", na=False, regex=False),
+            df["Tipo de Oportunidade"].fillna("").str.contains("Inap", na=False, regex=False),
             "Responsavel",
         ] = viviana
 
