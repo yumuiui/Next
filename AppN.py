@@ -308,33 +308,59 @@ def extract_manufacturer(block):
 
 # ── Atribuicao ────────────────────────────────────────────────────────────────
 
+# Marcas e percentuais conforme definicao da equipe
 DEFAULT_TEAM = [
-    {"name": "Viviana", "brands": ["kongsberg", "yamada", "dnh", "evac", "steyr"]},
-    {"name": "Helio",   "brands": ["abb", "schneider", "siemens", "rittal", "phoenix", "weidmuller", "rockwell"]},
-    {"name": "Mayara",  "brands": ["skf", "emerson"]},
+    {"name": "Helio", "pct": 0.3333, "brands": [
+        "siemens", "schneider", "phoenix", "abb", "weidmuller", "conexel",
+        "wago", "lovato", "rockwell", "waukesha", "turck", "yongsung",
+        "denora", "3x engineering", "topsafe", "mcfarland", "pepperl",
+    ]},
+    {"name": "Viviana", "pct": 0.3333, "brands": [
+        "danfoss", "orga", "dnh", "hirschmann", "vega", "kimray",
+        "zenitel", "grundfos", "george fischer", "george fis", "arca",
+        "amot", "flebu", "skf", "parker", "esbee", "aplisens",
+        "bitzer", "hilti", "oglaned",
+    ]},
+    {"name": "Mayara", "pct": 0.20, "brands": [
+        "evac", "steyr", "sailor", "emerson", "damcos", "warom",
+        "liebherr", "freudenberg", "siebenhaar", "bukh",
+    ]},
+    {"name": "Gabriele", "pct": 0.1333, "brands": [
+        "eaton", "cooper", "fhf", "medc", "bussmann", "deno",
+        "westlock", "kidde", "caterpillar", "exheat", "stahl",
+        "seatrax", "schweitzer",
+    ]},
 ]
 
 
 def sidebar_team():
     with st.sidebar:
         st.markdown("## Equipe")
-        st.caption("Configure os responsaveis e as marcas de cada um.")
+        st.caption("Configure os responsaveis, marcas e percentuais de cada um.")
         n = st.number_input("Nr de responsaveis", min_value=1, max_value=10, value=len(DEFAULT_TEAM), step=1)
         team = []
         for i in range(int(n)):
-            default = DEFAULT_TEAM[i] if i < len(DEFAULT_TEAM) else {"name": "Responsavel " + str(i+1), "brands": []}
-            with st.expander("Responsavel " + str(i+1), expanded=(i == 0)):
+            default = DEFAULT_TEAM[i] if i < len(DEFAULT_TEAM) else {"name": "Responsavel " + str(i+1), "pct": 0.0, "brands": []}
+            with st.expander(default["name"] if i < len(DEFAULT_TEAM) else "Responsavel " + str(i+1), expanded=(i == 0)):
                 name = st.text_input("Nome", value=default["name"], key="rname_" + str(i))
+                pct_default = round(default.get("pct", 0) * 100, 2)
+                pct = st.number_input("% dos itens sem marca", min_value=0.0, max_value=100.0,
+                                      value=float(pct_default), step=0.01, key="rpct_" + str(i),
+                                      help="Percentual de itens sem fabricante definido que essa pessoa recebe")
                 brands_raw = st.text_area(
                     "Marcas associadas (uma por linha)",
                     value="\n".join(default["brands"]),
-                    height=100,
+                    height=110,
                     key="rbrands_" + str(i),
                 )
                 brands = [b.strip().lower() for b in brands_raw.splitlines() if b.strip()]
-                team.append({"name": name, "brands": brands})
+                team.append({"name": name, "pct": pct / 100.0, "brands": brands})
         st.markdown("---")
-        st.markdown("Next Supply\nSeparador de OPS Petronect")
+        # Mostra soma dos percentuais
+        soma = sum(m["pct"] for m in team)
+        cor = "✅" if abs(soma - 1.0) < 0.01 else "⚠️"
+        st.caption(cor + " Soma dos percentuais: " + str(round(soma * 100, 1)) + "%")
+        st.markdown("Next Supply  |  Separador de OPS Petronect")
     return team
 
 
@@ -351,13 +377,21 @@ def assign(df, team):
 
     df["Responsavel"] = pd.NA
 
+    # Inaplica -> Viviana (primeira da lista por convencao)
+    viviana = team[0]["name"] if team else None
+    if viviana:
+        df.loc[
+            df["Tipo de Oportunidade"].fillna("").str.contains("Inaplica", na=False, regex=False),
+            "Responsavel",
+        ] = viviana
+
     # Passo 1 — marcas fixas por responsavel
     for member in team:
         for brand in member.get("brands", []):
             mask = df["Responsavel"].isna() & corpus.str.contains(brand_regex(brand), regex=True, na=False)
             df.loc[mask, "Responsavel"] = member["name"]
 
-    # Passo 2 — balanceamento proporcional dos restantes
+    # Passo 2 — distribuicao ponderada pelos percentuais configurados
     names = [m["name"] for m in team]
     if not names:
         return df
@@ -366,10 +400,19 @@ def assign(df, team):
     if total_na == 0:
         return df
 
-    n = len(names)
-    base = total_na // n
-    extra = total_na % n
-    targets = {names[i]: base + (1 if i < extra else 0) for i in range(n)}
+    # Calcula quantos itens cada um deve receber dos sem marca
+    soma_pct = sum(m.get("pct", 0) for m in team)
+    if soma_pct <= 0:
+        # Fallback: divisao igual se nenhum percentual definido
+        targets = {m["name"]: total_na // len(team) for m in team}
+    else:
+        targets = {m["name"]: round(total_na * m.get("pct", 0) / soma_pct) for m in team}
+        # Ajuste para garantir soma exata
+        diff = total_na - sum(targets.values())
+        if diff != 0:
+            maior = max(team, key=lambda m: m.get("pct", 0))["name"]
+            targets[maior] += diff
+
     counts = {name: 0 for name in names}
 
     chave = (
@@ -384,7 +427,6 @@ def assign(df, team):
         counts[chosen] += len(grp)
 
     return df
-
 
 
 # ── Historico de Precos por PN ────────────────────────────────────────────────
